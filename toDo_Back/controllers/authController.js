@@ -11,100 +11,113 @@ const jwtSecret = process.env.JWT_SECRET;
 
 class AuthController {
   // Signup Middleware
-  static async signup(req, res, next) {
-    const { email, userName, password } = req.body;
+ static async signup(req, res, next) {
+  const { email, userName, password } = req.body;
 
-
-    if (!email || !userName || !password) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-
-    try {
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-      req.body.hashedPassword = hashedPassword;
-
-      const query = 'INSERT INTO user (email, userName, password) VALUES (?, ?, ?)';
-
-      const [result] = await db.query(query, [email, userName, hashedPassword]);
-      const newUserId = result.insertId;
-
-      const userFolderPath = path.join(__dirname, '..', 'uploads', newUserId.toString());
-      if (!fs.existsSync(userFolderPath)) {
-        fs.mkdirSync(userFolderPath, { recursive: true });
-      }
-
-      const Folderquery = 'INSERT INTO folder_info (folder_name,parent_id,user_id ) VALUES (?, ?, ?)';
-      const [folderresult] = await db.query(Folderquery, [newUserId, '0', newUserId]);
-      // Optional: attach inserted user info to the request
-      req.user = {
-        id: result.insertId,
-        email,
-        userName
-      };
-
-      next();
-    } catch (err) {
-      console.error('Signup error:', err);
-      return res.status(500).json({ success: false, message: 'Signup failed' });
-    }
+  if (!email || !userName || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required' });
   }
 
+  try {
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Save user
+    const newUser = new User({ email, userName, password: hashedPassword });
+    await newUser.save();
+
+    const newUserId = newUser._id.toString();
+
+    // Create folder on disk
+    const userFolderPath = path.join(__dirname, '..', 'uploads', newUserId);
+    if (!fs.existsSync(userFolderPath)) {
+      fs.mkdirSync(userFolderPath, { recursive: true });
+    }
+
+    // Save initial folder record
+    const newFolder = new FolderInfo({
+      folder_name: newUserId,
+      parent_id: "0",
+      user_id: newUserId
+    });
+    await newFolder.save();
+
+    req.user = {
+      id: newUserId,
+      email,
+      userName
+    };
+
+    next();
+  } catch (err) {
+    console.error('Signup error:', err);
+    return res.status(500).json({ success: false, message: 'Signup failed' });
+  }
+}
 
   // Login Middleware
-  static async login(req, res, next) {
-    const { email, password } = req.body;
+ 
+static async login(req, res, next) {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-
-    try {
-      const query = 'SELECT * FROM user WHERE email = ?';
-      const [results] = await db.query(query, [email]);
-      const folder_id = results[0].id;
-      const folderQuery = 'SELECT * FROM folder_info WHERE user_id = ? and parent_id = 0 and folder_name = ?';
-      // console.log('folderQuery', folderQuery);
-      const [folderResults] = await db.query(folderQuery, [results[0].id, folder_id]);
-
-      if (results.length === 0 || folderResults.length === 0) {
-        return res.status(400).json({ success: false, message: 'Unable to log in' });
-      }
-
-      const user = results[0];
-      console.log('folder', folderResults);
-      const RootFolder = folderResults[0];
-      const hashedPassword = user.password;
-      const isMatch = await bcrypt.compare(password, hashedPassword);
-      if (!isMatch) {
-        return res.status(400).json({ success: false, message: 'Incorrect email or password' });
-      }
-
-
-      req.user = user;
-      req.user.folder = RootFolder;
-      const token = jwt.sign(
-        { id: user.id, email: user.email, password: user.password, folder_id: RootFolder.id },
-        jwtSecret,
-        { expiresIn: '7h' }
-      );
-
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
-        maxAge: 7 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        success: true,
-        message: 'Logged in successfully',
-      });
-    } catch (err) {
-      console.error('Login error:', err);
-      return res.status(500).json({ success: false, message: 'Login failed' });
-    }
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required' });
   }
 
+  try {
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Unable to log in' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Incorrect email or password' });
+    }
+
+    const userId = user._id.toString();
+
+    // Find root folder
+    const folder = await FolderInfo.findOne({
+      user_id: userId,
+      parent_id: "0",
+      folder_name: userId
+    });
+
+    if (!folder) {
+      return res.status(400).json({ success: false, message: 'Unable to log in' });
+    }
+
+    req.user = user;
+    req.user.folder = folder;
+
+    const token = jwt.sign(
+      {
+        id: userId,
+        email: user.email,
+        password: user.password,
+        folder_id: folder._id.toString()
+      },
+      jwtSecret,
+      { expiresIn: "7h" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      success: true,
+      message: "Logged in successfully",
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    return res.status(500).json({ success: false, message: "Login failed" });
+  }
+}
 
   static async verifyToken(req, res, next) {
     const token = req.cookies.token;
