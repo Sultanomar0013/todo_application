@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import LogIn from './pages/login';
 import Home from './pages/home';
-// import PrivateRoute from './authenticate/privateRoute';
+import './App.css';
+
 
 function App() {
     return (
