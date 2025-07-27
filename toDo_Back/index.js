@@ -3,6 +3,7 @@ require('dotenv').config();
 require('./model/db');
 
 
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -33,10 +34,6 @@ dotenv.config();
 const server = http.createServer(app);
 
 app.use('/user', userRoutes);
-
-
-
-
 
 app.get('/', (req, res) => {
   res.send('Hello, world! Your server is working!');

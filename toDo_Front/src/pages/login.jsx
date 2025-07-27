@@ -18,6 +18,10 @@ function LogIn() {
         setLoading(true);
         setError('');
 
+        console.log(userName);
+        console.log(email);
+        console.log(password);
+
         if (!userName || !email || !password) {
             setError('All fields are required');
             setLoading(false);
@@ -47,32 +51,6 @@ function LogIn() {
         }
     };
 
-    // const handleLogin = async () => {
-    //     setLoading(true);
-    //     setError('');
-
-    //     try {
-    //         const response = await axios.post(`${backendUrl}user/login`, {
-    //             email,
-    //             password,
-    //         });
-
-    //         const data = response.data;
-
-    //         if (data.success) {
-    //             console.log('Login successful:', data);
-    //             localStorage.setItem('token', data.token);
-    //             navigate('/docMod/home');
-    //         } else {
-    //             setError(data.message || 'Login failed. Please try again.');
-    //         }
-    //     } catch (err) {
-    //         console.error('Login error:', err);
-    //         setError('Error during login. Please try again.');
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
 
     const handleLogin = async () => {
         setLoading(true);
@@ -90,7 +68,7 @@ function LogIn() {
 
             if (data.success) {
                 console.log('Login successful:', data);
-                navigate('/docMod/home');
+                navigate('/home');
             } else {
                 setError(data.message || 'Login failed. Please try again.');
             }
@@ -195,6 +173,7 @@ function LogIn() {
                 </Paper>
             </Grid>
         </Grid>
+
     );
 }
 

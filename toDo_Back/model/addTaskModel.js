@@ -15,7 +15,8 @@ const TaskSchema = new mongoose.Schema({
     type: String,
     enum: ["Low", "Medium", "High"],
     default: "Low"
-  }
+  },
+  userId: { type: String, required: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Task", TaskSchema);

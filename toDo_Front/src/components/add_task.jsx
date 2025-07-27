@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Cookies from 'js-cookie';
 import {
   Modal, Box, TextField, Button, MenuItem, Typography
 } from "@mui/material";
@@ -15,6 +16,7 @@ export default function AddTask() {
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+  const backendUrl = import.meta.env.VITE_ADRESS;
 
   const [formData, setFormData] = useState({
     title: "", description: "", dueDate: "",
@@ -25,8 +27,17 @@ export default function AddTask() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async () => {
+    const token = Cookies.get('token');
+    console.log("Token:", token);
+    console.log("Form Data:", formData);
+
     try {
-      await axios.post(import.meta.env.VITE_API_URL, formData);
+      await axios.post(`${backendUrl}user/addTask`, formData, {
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       handleClose();
     } catch (err) {
       console.error("Submit Error:", err);
